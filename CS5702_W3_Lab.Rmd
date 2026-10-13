@@ -1,0 +1,537 @@
+---
+# This is the YAML header
+title: "CS5702 Week3 Lab Notebook"
+output:
+  html_document: default
+  pdf_document: default
+author: Martin Shepperd
+date: 07/10/2026
+---
+
+# Week 3 Worksheet 
+
+Be aware that this Worksheet contains some intentional (but hopefully no unintentional) coding errors which will need to be fixed (by you!).  
+
+
+## Worksheet Contents
+
+0. [Worksheet: Introduction](#W3S0)
+1. [Visualising covid-19 data trends](#W3S1)
+2. [Debugging and getting help](#W3S2)  
+3. [User defined functions](#W3S3)    
+4. [Sample exercise answers](#W3A) 
+
+## 0. Worksheet Introduction {#W3S0}  
+
+<span style="color: darkorange;">**Pre-requisites**</span>
+
+You should:  
+
+1. have worked through the Week 2 Worksheet 
+2. be familiar (listened to/read) the Week 3 Lecture "Engineering or Hacking"
+3. be able to write, edit, save and re-open your own RMarkdown files  
+4. be able to load external files (of various formats such as csv) into a data frame
+
+## 0.1 Worksheet Navigation: Choose your track before starting
+
+Welcome! Depending on your prior R experience, follow the appropriate pathway below:
+
+**TRACK A:** Building confidence with R and data analysis
+**Focus:** Work through Sections 0.2, 1, 2 and 3 in order.
+**Goal:** Practise loading packages, exploring and plotting data, identifying coding errors and writing simple functions. Run each code chunk and check that you understand its output before moving on. Prioritise the core exercises; attempt extension exercises when you feel ready.  
+
+**TRACK B:** Consolidating and extending your R and data analysis skills
+**Focus:** If you're already comfortable with R, skim the explanation in Section 0.2, but run the package-loading commands. Move quickly through familiar material in Sections 1–3 and prioritise the extension exercises. Run the setup and data-preparation chunks in order so that the objects needed later are available.
+**Goal:** Go beyond getting the code to run. Evaluate what the plots show and how data quality affects their interpretation. Explain why coding errors occur, and consider how user-defined functions can make your analysis easier to reuse and maintain.
+
+**Both tracks:** Use this same worksheet and cover the core ideas in all three sections: visualising data, debugging and writing functions. Your track guides how you spend your time; you do not need to finish every exercise during the lab.
+
+
+### 0.2 Packages and libraries
+
+Up until now we have mainly dealt with Base R, principally for reasons of simplicity.  This is often a sufficient set of functions to perform straightforward data and statistical analysis.  However, there is a rich world of **additional** functions that are freely available.  
+
+We can **extend** Base R by means of <span style="color: darkorange;">**packages</span> (collections of extra functions and data sets) developed by the R community and validated by [CRAN](https://cran.r-project.org/) which hosts most packages.  Presently there are about 25,000 extra packages covering everything from graphics to machine learning.  
+
+In order to install a new package you need to fetch it from CRAN and copy onto a local storage device as part of your R library e.g., your hard disk.  You do this **ONCE**.  This is with the `install.packages()` function.  Thereafter, if you need to use it you must copy it into memory each R session.  This is with the `library()` function.
+
+Notice that the package name is given in quotation marks because it's a character string literal.  However, for the library function you can just give the name.
+
+
+```{r}
+# Install a library
+# Only do this once!
+
+# The packages we need for this lab worksheet are:
+# (1) tidyverse - a useful collection of functions embedded in
+# various packages including {ggplot2} and 
+# (2) data.table
+
+# To do this you need to uncomment the lines below for first time
+# install.packages("tidyverse")
+# install.packages("data.table")
+
+# Then *every* new R session
+library(tidyverse)     # Lots of useful extensions including ggplot2
+library(data.table)    # More efficient to View() a data.table
+
+# To check what packages you already have in your library
+# NB this can be a very long list after a while so one option is to save it as an R
+# data object e.g., PkgList
+PkgList <- installed.packages()
+View(PkgList)
+```
+
+**Exercise 0.1:** What type is `PkgList`?  How might you conveniently explore it?  [HINT: View]
+
+NB There can sometimes be complex dependencies between packages and so installing one package may lead to others being installed.  Similarly, when you load from your R library.  For this reason it's wise to avoid repeatedly re-installing packages uneccessarily. 
+
+
+## 1. Visualising covid-19 data trends {#W3S1}
+
+This example shows how we can download, use and visualise covid-19 data from multiple sources provided by WHO and hosted on Our World in Data (OWID) as the data set provider  [here](https://docs.owid.io/projects/etl/api/covid/).
+
+### 1.1 Initialisation
+
+This R code may appear daunting but don't worry.  We will revisit it in detail later in the module.  
+
+**Exercise 1.1:** 
+
+Run the code chunk below.
+
+```{r}
+# To down load data from OWID
+# Note we use fread (provided by data.table) 
+cv19_dt <- fread(
+  "https://catalog.ourworldindata.org/garden/covid/latest/compact/compact.csv"
+)
+
+View(cv19_dt)
+```
+
+Previously we used the base R function read.csv() to import CSV files. Since we will now be working with data.table, we can use its fread() function. It performs the same basic task but is designed for fast and convenient import of delimited data (e.g., comma separated values - CSV) and returns a data.table directly.
+
+The data comprise all international covid-19 data recorded from January, 2020 until the present.  It has ~617,000 observations (see the Environment Pane to the top right of RStudio).  Is this large?  How much larger can R handle?  
+
+(You may notice that loading the data can be quite slow.  So you may want to avoid running this code chunk too often!)
+
+
+### 1.2 Explore the data
+
+```{r}
+# What sort of object is this?
+class(cv19_dt)
+
+# How large is it?
+cat("The number of rows is:", nrow(cv19_dt), "\n")
+cat("The number of columns is:", ncol(cv19_dt), "\n")
+```
+
+**Exercise 1.2:** What is the data type of cv19_dt?  Why does `class()` give two answers?  And how many rows and how many columns (variables) are there?  
+
+**Extension exercise 1.3:** why are the function calls `nrow()` and `ncol()` embedded in another function cat()?  Why didn't I just use `print()`?  What does `paste()` do?  HINT: ease of reading the output.
+
+It seems we have a lot of variables and some only contain `NA` values (meaning "Not Available" which represents a missing or unknown value in R - more about this in Week 5).  For simplicity we will reduce the data to a more manageable subset.  I've made some choices but you can change them if you prefer.
+
+```{r}
+# Reducing the data set to a smaller subset of variables
+cv19_dt <- cv19_dt[, .(
+  country,
+  code,
+  date,
+  population,
+  total_cases,
+  new_cases,
+  total_deaths,
+  new_deaths,
+  life_expectancy,
+  hospital_beds_per_thousand
+)]
+```
+
+**Exercise 1.4:** So how many variables do we have now?  Which ones vary by date and which ones are constant per country?  
+
+**Extension exercise 1.5:** Why might the same value be stored repeatedly even if this seems inefficient?
+
+```{r}
+# What variables do we now have?
+names(cv19_dt)
+
+# What is the structure of the data?
+str(cv19_dt)
+
+# Look at the first and last few observations
+head(cv19_dt)
+tail(cv19_dt)
+```
+
+
+Let's focus on the UK  and then "eyeball" the data again.  
+
+**Exercise 1.6:** Run the code chunk below. What is the impact on the number of variables and also the number of rows (observations)?
+
+```{r}
+# Select the UK data and put observations in date order
+cv19_uk_dt <- cv19_dt[code == "GBR"]
+cv19_uk_dt[, date := as.Date(date)]
+setorder(cv19_uk_dt, date)
+
+# Let's look at the top and bottom few rows again to check our code works as expected
+head(cv19_uk_dt) 
+tail(cv19_uk_dt) 
+```
+
+
+
+### 1.3 Show trends
+
+(i) Reported death cases
+
+We can produce a plot of daily additional deaths using the {ggplot2} package which is an extremely powerful and flexible set of functions for producing high quality graphics e.g., NYT, Guardian and the BBC.  We can also save the plots using the `ggsave()` function which is also part of the {ggplot2} package.
+
+```{r new_reported_deaths, message=FALSE}
+# A smaller span makes the loess smoother more wiggly
+ggplot(cv19_uk_dt, aes(x = date, y = new_deaths)) +
+  geom_line(colour = "skyblue", linewidth = 0.6) +
+  geom_smooth(
+    method = "loess", formula = y ~ x, span = 0.2,
+    colour = "darkorange", fill = "darkorange"
+  ) +
+  scale_y_continuous(labels = scales::label_comma()) +
+  labs(
+    title = "New reported COVID-19 deaths in the UK",
+    x = "Date",
+    y = "New reported deaths",
+    caption = "Reporting frequency and coverage changed over time."
+  )
+
+# Save the last plot as the specified file name. Type is determined by the suffix.
+ggsave("cv19_UK_deathrate.png", width = 9, height = 5, dpi = 300)
+```
+
+**Exercise 1.7:** A smoother (the orange line) is designed to detect trends in the presence of noisy data when the shape of the trend is unknown. In this case we use the **loess** (locally estimated scatterplot smoothing) smoother.  If you're unfamiliar with smoothing see this excellent [short guide](https://data.europa.eu/apps/data-visualisation-guide/smoothing-lines).
+
+Why might we want to fit a smoother to our data?  What might they tell us?
+
+
+**Exercise 1.8:** Another way to visualise changes (in deaths or new infections) is as cumulative data, so each new observation (day) is added to a running total.  Because we're dealing with count data a cumulative total should be non-decreasing.  However, published cumulative totals might also decrease following corrections.  Why?
+
+Compare the plot below with the previous plot.  Which shows the trend better?  What are their strengths and weaknesses?
+
+```{r cum_deaths}
+# OWID supplies cumulative totals
+ggplot(cv19_uk_dt, aes(x = date, y = total_deaths)) +
+  geom_line(colour = "skyblue", linewidth = 0.6) +
+  scale_y_continuous(labels = scales::label_comma()) +
+  labs(
+    title = "Cumulative reported COVID-19 deaths in the UK",
+    x = "Date",
+    y = "Total reported deaths"
+  )
+
+ggsave("cv19_UK_cum_deaths.png", width = 9, height = 5, dpi = 300)
+```
+**Extension exercise 1.9:** A smoother would add little to the cumulative totals. Why?  How does the slope of the cumulative curve relate to the new-reported count plot?  
+
+
+(ii) Reported new infections
+
+
+```{r new_reported_infections, message=FALSE}
+# Logarithms require positive values.
+# Use a plotting copy so the original data remain available.
+cv19_uk_log_dt <- copy(cv19_uk_dt)
+cv19_uk_log_dt[new_cases <= 0, new_cases := NA_real_]
+
+ggplot(cv19_uk_log_dt, aes(x = date, y = new_cases)) +
+  geom_line(colour = "skyblue", linewidth = 0.6) +
+  scale_y_log10(labels = scales::label_comma()) +
+  geom_smooth(
+    method = "loess", formula = y ~ x, span = 0.75,
+    colour = "darkorange", fill = "darkorange"
+  ) +
+  labs(
+    title = "New reported COVID-19 cases in the UK",
+    x = "Date",
+    y = "New reported cases (log10 scale)",
+    caption = "Zero and negative values are omitted from this log-scale plot."
+  )
+
+ggsave("cv19_UK_infectionrate.png", width = 9, height = 5, dpi = 300)
+```
+**Exercise 1.10:** Note that we use a log scale for the y-axis ie daily new infection count.  Why?
+
+
+Cumulative reported infections
+
+```{r cum_reported_infections}
+ggplot(cv19_uk_dt, aes(x = date, y = total_cases)) +
+  geom_line(colour = "skyblue", linewidth = 0.6) +
+  scale_y_continuous(labels = scales::label_comma()) +
+  labs(
+    title = "Cumulative reported COVID-19 cases in the UK",
+    x = "Date",
+    y = "Total reported cases"
+  )
+
+ggsave("cv19_UK_cum_cases.png", width = 9, height = 5, dpi = 300)
+```
+
+**Extension exercise 1.11:** If you look carefully at the new reported infection rate plot for the UK we can see the reported data stops in 2023 (check the raw data to see when it is no longer collected).  However, the smoother continues for the entire time period.  Why is this and what does it mean?   Should we trust this kind of extrapolation?
+
+**Exercise 1.12:** What was the greatest number of new infections in one day in the UK?  HINT there is a built in function `max()` and the you will need to examine the vector `new_cases` which is part of the `cv19_uk_dt` dataframe so you will need the `$` operator. 
+
+**Exercise 1.13:**  The plots cover a long period of time and are not easy to read.  Suppose we want to focus on 2022?  To do this we can use a subset based on date
+
+```{r}
+# Select only data for the UK from 2022
+cv19_uk2022_dt <- cv19_uk_dt[
+  date >= as.Date("2022-01-01") &
+  date < as.Date("2023-01-01")
+]
+```
+
+Now repeat creating the time series using the 2022 data.  Does your analysis differ?  Experiment with other time subsets.  NB You will need to re-run the code chunks (new_reported_deaths, cum_deaths, new_reported_infections and cum_reported_infections) after **changing** the data source to cv19_uk2022_dt.
+
+**Extension Exercise 1.14:** Edit the R code to produce a similar trend analysis for another country of your choice.  Note that the data set uses 3 character country codes e.g., SWE, USA see [wikipedia](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-3) for a complete list.  HINT: you will need to change the subset command and should save to a new data table (so you don't overwrite the old one).
+
+
+## 2. Debugging and getting help {#W3S2}
+
+1. find/read the relevant [cheatsheet](https://rstudio.com/resources/cheatsheets/)  
+2. perspiration e.g., see this [five step approach](https://medium.com/learn-love-code/stuck-on-a-coding-problem-here-are-5-steps-to-solve-it-8be04c4b4f19)
+3. talk it over with a fellow student
+4. module **FAQs** on Brightspace (this will grow over time)  
+5. [Stack overflow](https://stackoverflow.com/)  
+6. asking a member of the course team  
+
+For *more* suggestions visit the subsection 0.2 ["vi) Learn how to get help"](https://bookdown.org/martin_shepperd/ModernDataBook/W0-Prep.html#Help) in the Modern Data book.  
+
+**Exercise 2.1:** The following R code chunk produces an error when executed.  What's wrong?  Can you fix it?
+
+PS The chunk option `{r eval=FALSE}` indicates although this is R code, do not try to execute it when rendering (knitting) the Rmd to html/pdf or the desired output.  This is because executing the code would lead to an error and the process would fail.  You can switch eval to TRUE to test this if you wish.  
+
+```{r eval=FALSE}
+# This code chunk contains an error
+var1 <- 5
+var2 <- 6
+var3 <- (var1 * var2)/(varI * 100)
+```
+
+**Exercise 2.2:** This next R chunk has a logic error.  Can you detect it and then make the necessary correction?  It might help to look at the values of the variables in the Environment Pane.  
+
+
+```{r eval=FALSE}
+# This code chunk contains an error
+var4 <- 1
+var5 <- 2
+var6 <- (var4 + var5)/(var4 * var5)
+if(var6 < var4) print("var6 is larger than var4")
+if(var6 > var4) print("var6 is smaller than var4")
+```
+
+In addition, the above code doesn't cover all situations which makes it a bit 'ugly'. Can you fix the problem? 
+
+**Exercise 2.3:** The following R code chunk produces an error when executed.  What's wrong?  Can you fix it?  
+
+```{r eval=FALSE}
+# Here we are trying to create a numeric vector using
+# the combine c() function.  But there's an error.
+Vector1 <- c(3, 2, O, 2, 2, 6)
+```
+
+**Exercise 2.4:** The following R code chunk contains a bug such that yet again it produces an error when executed.  What's wrong?  Can you fix it?
+
+```{r eval=FALSE}
+x <- "1"
+Vector2 <- c(3, 2, 0, 2, 2, 6)
+Vector2 <- c(Vector2, x)
+sum(Vector2)
+```
+
+
+## 3. User defined functions {#W3S3} 
+
+> One of the best ways to improve your reach as a data scientist is to write functions. Functions allow you to automate common tasks in a more powerful and general way than copy-and-pasting.  
+> --- Grolemund and Wickham (2018) 
+
+User-defined function *benefits*:  
+
+- abstract (hide) details to help understandability e.g., `checkInput()`   
+- place related code in one place    
+- reuse  
+- maintainability i.e., only need to make changes in *one* place  
+
+
+Parts of a function:  
+
+1. **Function Name**: how we call the function e.g., `head()`.  Try to use descriptive names.
+2. **Argument(s)**: when a function is called, we pass values to match the (0+) arguments.
+3. **Function Body**: contains a set of statements that defines what the function does.  (For in-built functions these are hidden but for user defined-functions we need to provide them.)  
+4. **Return Value**: the result after being called i.e., what's given back to the calling code.
+
+
+We can DEFINE a function called *halve* by declaring it.  Afterwards you can see it as a new R object in the Environment Pane.  (This example function is intentionally trivial (indeed pointless) for illustrative purposes.)
+
+```{r}
+halve <- function(n)
+# This function takes a number and divides it by two
+{
+  functionResult <- n/2  
+  return(functionResult) 
+}
+```
+
+We USE the function by calling it *after* it has been successfully declared.
+
+``` {r}
+halve(-8.3)
+```
+
+**Exercise 3.1:** Create a new function named `third()` that returns a third of its input argument n.  Check it works by testing it with various input values, e.g., `third(7)`.
+
+```{r}
+# Your function third goes here
+```
+
+
+**Exercise 3.2:** Generalise the function to `fraction()` so that it now has two arguments where the first is the numerator and the second is the denominator.  Declare the function and again test it with different input values, e.g., `fraction(7, 10)`.
+
+
+```{r}
+# Your function fraction goes here
+```
+
+
+**Exercise 3.3:** Write a new function `notNegative()` that takes a number as an argument and return TRUE if it's zero or more (i.e., not negative) and FALSE otherwise.  You will need an `if` statement that tests if a condition is true or not, e.g., `if (x<y) ... else ...`.  For more details use the help e.g., enter "if' into the search box of the Help Pane in RStudio.
+
+
+```{r}
+# Your function notNegative goes here
+```
+
+
+**Extension exercise 3.4:** What happens to your function if you give a value that's not numeric e.g., a character?  How might you protect your function against this eventuality?  This is sometimes known as defensive programming.  HINT: There's a built-in function `is.numeric()`. You can discover more about it using the help, e.g., type `?is.numeric`.
+
+
+## 4. Selected exercise answers {#W3A}
+
+**0.1:** PkgList is a character matrix: a rectangular arrangement of rows and columns containing text. Each row describes an installed package. Use View(PkgList) to browse it, or str(PkgList) to inspect its structure. class() reports both "matrix" and "array" because a matrix is a two-dimensional array.  
+
+**1.1:** Although ~617K observations might seem large, in reality this only occupies 34Mb which is <1% of the capacity of R on a fairly standard laptop or PC.
+
+**1.2:** cv19_dt is a data.table, which also inherits from data.frame. This is why class() reports both names. The rows represent observations for a location on a date, and the columns represent variables. Use nrow(cv19_dt) and ncol(cv19_dt) to find its dimensions.  These will change as the online dataset is updated.
+
+**1.3:** nrow() and ncol() calculate the dimensions. cat() combines the results with explanatory text and displays them. We could also use print(), but printing a character string normally includes quotation marks and an output index such as [1]. paste() joins values into a character string, which can then be printed or stored.
+
+For example, print(paste("The number of rows is:", nrow(cv19_dt))) is another way to display a labelled result.
+
+**1.5:** Repeating a country-level value makes each row easier to use independently. For example, students can select a particular date and still have the country information needed for comparisons. This is convenient for analysis, although it uses more storage and requires care to keep repeated values consistent.
+
+**1.7:** A smoother helps us see the broad pattern when short-term fluctuations make it difficult to follow. It can show periods when reported deaths generally rise, fall or remain relatively steady.
+
+But the amount of smoothing matters, too little may show excessive noise, yet too much may hide important changes. A smoother describes a pattern in the reported data—it does not explain its causes or repair problems with data collection.
+
+The orange shaded band is an approximate 95% confidence interval around the fitted mean trend. It does not show a range containing 95% of the individual observations.
+
+**1.8:** Adding nonnegative counts produces a total that increases or stays the same. Published totals can nevertheless fall if earlier records are corrected—for example, if duplicate records are removed.
+
+The new-count plot makes individual waves and short-term changes easier to see, but can be noisy. The cumulative plot shows the total reported burden and longer-term accumulation, but makes smaller recent changes harder to distinguish. Neither is universally better since they answer different questions.
+
+**1.9:** Accumulation often makes cumulative curves smoother already, so an additional smoother may contribute little and obscure changes.
+
+A steep cumulative curve means many additional cases or deaths are being reported; a flatter curve means fewer are being added. Between consecutive daily observations, the change in the cumulative total corresponds to the new count, subject to reporting corrections and the source’s processing.
+
+**1.10:** New reported case counts vary over a large range. A logarithmic scale makes smaller values easier to see alongside much larger ones.  Equal vertical distances represent equal ratios, e.g., 100 to 1,000 occupies the same distance as 1,000 to 10,000. Zero has no finite logarithm, so zero values cannot be represented on this scale.
+
+**1.12:** Use `max(cv19_uk_dt$new_cases, na.rm = TRUE)`. The argument `na.rm = TRUE` tells R to ignore missing values when finding the maximum.  This gives the largest recorded new-case count in the downloaded UK data. It might not necessarily represent infections occurring on that date, because reporting can be delayed or batched.
+
+
+
+**2.1:** Although superficially the code looks ok, `var1` has been mistyped as `varI` on line 318.  Variable names need to be exact including the same case.
+
+**2.2:** The logical problem lies in the two if statements.  The relational operators (< and >) are the wrong way round, i.e., they're not consistent with the message from `print()`.  Making errors with `if` conditions is all too easy.  Be on the look out for this type of mistake.  
+
+**2.3:** As per Exercise 2.1 superficially the code looks ok but if you inspect the arguments to c() carefully you will see that instead of a zero (0) an upper case O has been typed.  A hint is the editor has coloured it black rather than blue which RSTudio uses for numeric literals, black indicates it may be a variable name.  Since it's not in quotes R assumes it's the name of an object (variable) called `O` and since this has not been declared it doesn't know what to do and gives up.  A solution is to replace `O` with 0.
+
+**2.4:** The problem is to do with type.  If you look carefully you can see that x is a character type because the number assigned to it is in quotation marks.  Therefore when we combine it with the numeric vector Vector2 this **coerces** the type to a character vector.  Remember every element of a vector must be the same type.  Once the type has changed from numeric to character it's no longer meaningful to apply the arithmetic function `sum()` to it.
+
+**3.1:** This change should be straightforward.  Don't forget to edit the comment.  Obsolete and redundant comments are extremely harmful to the goal of understandable code.  
+
+```{r}
+third <- function(n)
+  # This function takes a number and divides it by three
+{
+  functionResult <- n / 3
+  return(functionResult)
+}
+```
+
+**3.2:** Here is a possible solution.  Note that there are now two arguments to this function.  The comment also been added to explain the purpose of each argument particularly because `n` and `m` are quite gnomic. 
+
+```{r}
+fraction <- function(n, m)
+  # This function takes a number n (numerator) and divides it by m (denominator)
+{
+  functionResult <- n / m
+  return(functionResult)
+}
+```
+
+**3.3:** This function requires a logical test using an `if` statement. Again this function might seem trivial but it's good to add a comment to properly document it.  Remember the direction we're testing, i.e., *not* negative so zero or more should return TRUE.  When you test your function, e.g., `notNegative(-3)` remember to cover positive and negative cases and it's good practice to also consider the boundary case (which is zero).
+
+```{r}
+notNegative <- function(n)
+  # This function checks if n is negative (returns FALSE) or not (returns TRUE)
+{
+  if (n < 0)
+    return(FALSE)
+  else
+    return(TRUE)
+}
+```
+
+
+**3.4:** This version tests if the argument is numeric using the built-in function `is.numeric()`.
+
+Without changing the return data type from logical which would turn the function into something very different, I assume that non-numeric types cannot be considered as not negative so the function returns FALSE if either n isn't numeric or it isn't non-negative.  
+
+This requires a nested `if ... else`.
+
+```{r}
+notNegative <- function(n)
+{
+  # This function checks if n is non-numeric and returns FALSE
+  # otherwise if n is numeric then
+  # tests if it is not negative ie zero or more (returns TRUE) else (returns FALSE)
+  
+  if (!is.numeric(n))
+    # The ! is a logical not ie not numeric
+    return(FALSE)
+  else
+    if (n < 0)
+      return(FALSE)
+  else
+    return(TRUE)
+}
+```
+
+A more elegant solution removes the need for negation.
+
+```{r}
+notNegative <- function(n)
+{
+  # This function checks if n isn't numeric and returns FALSE
+  # else if n is numeric then
+  # tests if it is not negative ie zero or more (returns TRUE) else (returns FALSE)
+  
+  if (is.numeric(n))
+    if (n < 0)
+      return(FALSE)
+    else
+      return(TRUE)
+  else
+    return(FALSE)
+}
+```
+
